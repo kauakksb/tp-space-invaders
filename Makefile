@@ -1,6 +1,6 @@
 
 TARGET = tp-pds-1.exe
-SRC = tp-pds-1.c
+SRC = tp-pds-1.c modulos/alien.c modulos/nave.c modulos/util.c
 OBJ = $(SRC:.c=.o)
 CC = gcc
 

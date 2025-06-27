@@ -1,426 +1,182 @@
 #include <stdio.h>
-#include<string.h>
+#include <stdlib.h>
+#include <string.h>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_image.h>
+#include "modulos/alien.h"
+#include "modulos/nave.h"
+#include "modulos/util.h"
 
 // Determina a taxa de atualização do programa
-const float FPS = 100;  
+#define FPS 100.00  
 
-const int SCREEN_W = 960; // Largura da tela
-const int SCREEN_H = 540; // Altura da tela
+#define SCREEN_W 960 // Largura da tela
+#define SCREEN_H 540 // Altura da tela
+#define GRASS_H 60
 
-const int GRASS_H = 60;
+#define NAVE_W 100 
+#define NAVE_H 50
 
-const int NAVE_W = 100; 
-const int NAVE_H = 50;
+#define PONTA_NAVE SCREEN_H - (GRASS_H/2) - NAVE_H
 
-const int ALIEN_W = 50;
-const int ALIEN_H = 45;
-
-const int PONTA_NAVE = SCREEN_H - (GRASS_H/2) - NAVE_H;
-
-typedef struct TIRO
+typedef struct STAR
 {
-    int estado;
-    float x, y;
-    float y_vel;
-    float raio;
-    ALLEGRO_COLOR cor;
-}TIRO;
-
-typedef struct NAVE
-{
-    float x;
-    float vel;
-    int dir, esq;
-    ALLEGRO_COLOR cor;
-    TIRO municao;
-}NAVE;
-
-
-typedef struct ALIEN
-{
-    char *tipo;
     int **desenho;
-    int id, grupo;
     int linhas, colunas;
-    int altura, largura;
     float x, y;
-    float x_vel, y_vel;
-    ALLEGRO_COLOR cor;
-}ALIEN;
+}STAR;
 
 
-typedef struct GRUPO_ALIENS
+STAR* init_star(float x, float y)
 {
-    ALIEN **esquadrao;
-    int id_grupo;
-    char *tipo;
-    float x, y;
-    float espacamento_x;
-    float espacamento_y;
-    int altura, largura;
-    int num_aliens;
-}GRUPO_ALIENS;
+    STAR * estrela = (STAR*) malloc(sizeof(STAR));
+    estrela->x = x;
+    estrela->y = y;
 
-void initNave(NAVE *nave)
-{
-    nave->x = SCREEN_W/2;
-    nave->vel = 3;
-    nave->dir = 0;
-    nave->esq = 0;
-    nave->cor = al_map_rgb(0, 0, 255);
+    estrela->desenho = guarda_desenho(&estrela->linhas, &estrela->colunas, "designs/star.txt");
 
-    nave->municao.estado = 0;
-    nave->municao.raio = 5;
-    nave->municao.x = nave->x;
-    nave->municao.y = PONTA_NAVE;
-    nave->municao.y_vel = 4;
-    nave->municao.cor = al_map_rgb(255, 0, 0);
+    return estrela;
 }
 
-void draw_nave(NAVE nave)
+void draw_star(STAR * estrela)
 {
-    float y_base = SCREEN_H - (GRASS_H/2);
-    al_draw_filled_triangle(nave.x, y_base - NAVE_H, 
-                            nave.x - (NAVE_W/2), y_base, 
-                            nave.x + (NAVE_W/2), y_base, 
-                            nave.cor);
-}
-
-void update_nave(NAVE *nave)
-{
-    if(nave->esq != nave->dir)
+    for(int i = 0; i < estrela->linhas; i++)
     {
-        if(nave->esq == 1 && nave->x - (NAVE_W/2) - nave->vel >= 0)
+        for(int j = 0; j < estrela->colunas; j++)
         {
-            nave->x -= nave->vel;
-        }
-        else if(nave->dir == 1 && nave->x + (NAVE_W/2) + nave->vel <= SCREEN_W)
-        {
-            nave->x += nave->vel;
-        }
-
-        if(nave->municao.estado == 0)
-        {
-            nave->municao.x = nave->x;
+            if(estrela->desenho[i][j] == 1)
+            {
+                al_draw_filled_rectangle(estrela->x + (j), estrela->y + (i),
+                                        estrela->x + (j+1) , estrela->y +(i+1), 
+                                        al_map_rgb(255, 255, 255));
+            }
+            else if(estrela->desenho[i][j] == 2)
+            {
+                al_draw_filled_rectangle(estrela->x + (j), estrela->y + (i),
+                                        estrela->x + (j+1), estrela->y + (i+1), 
+                                        al_map_rgb(255, 253, 123));
+            }
+            else if (estrela->desenho[i][j] == 3)
+            {
+                al_draw_filled_rectangle(estrela->x + (j), estrela->y + (i),
+                                        estrela->x + (j+1), estrela->y +(i+1), 
+                                        al_map_rgb(199, 199, 199));
+            }
         }
     }
+            
 }
 
-void draw_tiro(TIRO municao)
+void destroi_star(STAR * estrela)
 {
-    if(municao.estado == 1)
+    for(int i = 0; i < estrela->linhas; i++)
     {
-        al_draw_filled_circle(municao.x, municao.y, municao.raio, municao.cor);
+        free(estrela->desenho[i]);
     }
+    free(estrela->desenho);
+    free(estrela);
 }
 
-void update_tiro(TIRO * municao, float novo_x)
+void draw_menu()
 {
-    if(municao->y + municao->y_vel <= 0)
-    {
-        municao->estado = 0;
-        municao->x = novo_x;
-        municao->y = PONTA_NAVE;
-    }
 
-    if(municao->estado == 1)
-    {
-        municao->y -= municao->y_vel;
-    }
-    
 }
 
-void colisao_tiro(TIRO * municao, float novo_x, GRUPO_ALIENS ** aliens, int tamanho_esq, int n)
+int colisao_tiro(TIRO * municao, float novo_x, GRUPO_ALIENS ** aliens, int tamanho_esq, int n)
 {
+
     for(int i = 0; i < n; i++)
     {
         for(int j = 0; j < tamanho_esq; j++)
         {
-            int x1 = aliens[i]->esquadrao[j]->x;
-            int y1 = aliens[i]->esquadrao[j]->y;
-            int x2 = aliens[i]->esquadrao[j]->x + aliens[i]->esquadrao[j]->largura;
-            int y2 = aliens[i]->esquadrao[j]->y + aliens[i]->esquadrao[j]->altura;
-            if (municao->x + municao->raio > x1 && municao->x + municao->raio < x2)
+            if(aliens[i]->esquadrao[j]->estado == 1)
             {
-                if(municao->y + municao->raio > y1 && municao->y + municao->raio < y2)
+                int x1 = aliens[i]->esquadrao[j]->x;
+                int y1 = aliens[i]->esquadrao[j]->y;
+                int x2 = aliens[i]->esquadrao[j]->x + aliens[i]->esquadrao[j]->largura;
+                int y2 = aliens[i]->esquadrao[j]->y + aliens[i]->esquadrao[j]->altura;
+                if (municao->x + municao->raio > x1 && municao->x + municao->raio < x2)
                 {
-                    printf("colidiu");
-                    municao->estado = 0;
+                    if(municao->y + municao->raio > y1 && municao->y + municao->raio < y2)
+                    {
+                        printf("colidiu");
+                        municao->estado = 0;
+                        municao->y = PONTA_NAVE;
+                        municao->x = novo_x;
+                        aliens[i]->esquadrao[j]->estado = 0;
+                        return 1;
+                    }
+                }
+                else if(municao->x - municao->raio > x1 && municao->x - municao->raio < x2)
+                {
+                    if(municao->y - municao->raio > y1 && municao->y - municao->raio < y2)
+                    {
+                        printf("colidiu");
+                        municao->estado = 0;
+                        municao->y = PONTA_NAVE;
+                        municao->x = novo_x;
+                        aliens[i]->esquadrao[j]->estado = 0;
+                        return 1;
+                    }
                 }
             }
-            else if(municao->x - municao->raio > x1 && municao->x - municao->raio < x2)
-            {
-                if(municao->y - municao->raio > y1 && municao->y - municao->raio < y2)
-                {
-                    printf("colidiu");
-                    municao->estado = 0;
-                    municao->y = PONTA_NAVE;
-                    municao->x = novo_x;
-                }
-            }
-            
         }
     }
-}
-
-// Instancia uma struct de ALIEN e retorna seu endereço de memória (o seu ponteiro)
-ALIEN *initAlien(char *tipo, int id, int grupo, float espacamento_x, float espacamento_y)
-{
-    // Criando ponteiro de ALIEN
-    ALIEN *alien;
-
-    // Alocando espaço para a struct ALIEN
-    alien = (ALIEN*) malloc(sizeof(ALIEN));
-
-    // Armazenando id e grupo do alien
-    alien->id = id;
-    alien->grupo = grupo;
-
-    // Alocando espaço para o tipo do alien e guardando o tipo
-    alien->tipo = (char*) malloc(strlen(tipo) * sizeof(char));
-    strcpy(alien->tipo, tipo);
-
-    // Declarando variável que será usada para abrir o arquivo do desenho do alien
-    FILE * arq = NULL;
-
-    // Verificando qual o tipo do alien
-    if(!strcmp(alien->tipo, "carangueijo"))
-    {
-        arq = fopen("crab.txt", "r");
-    }
-    else if(!strcmp(alien->tipo, "polvo"))
-    {
-        arq = fopen("octopus.txt", "r");
-    }
-    else if(!strcmp(alien->tipo, "molusco"))
-    {
-        arq = fopen("squid.txt", "r");
-    }
-
-    // Verificando se o arquivo é nulo e caso contrário, realiza a leitura dos dados
-    if(arq != NULL)
-    {
-        // Lê quantas linhas e colunas compoem o desenho do alien
-        fscanf(arq, "%d", &alien->linhas);
-        fscanf(arq, "%d", &alien->colunas);
-
-        // Guarda as medidas de altura e largura baseada no desenho
-        alien->altura = 5 * alien->linhas;
-        alien->largura = 5 * alien->colunas; 
-
-        // Aloca espaço para a matriz do desenho do alien 
-        alien->desenho = (int**) malloc(alien->linhas * sizeof(int*));
-        for(int i = 0; i < alien->linhas; i++)
-        {
-            alien->desenho[i] = (int*) malloc(alien->colunas * sizeof(int));
-        }
-
-        // Guarda os valores de cada entrada da matriz
-        for(int i = 0; i < alien->linhas; i++)
-        {
-            for(int j = 0; j < alien->colunas; j++)
-            {
-                fscanf(arq, "%d", &alien->desenho[i][j]);
-            }
-        }
-        fclose(arq); // Fecha o arquivo da matriz do desenho
-
-        // Imprime os valores da matriz no terminal para verificar de a leitura foi realizada corretamente
-        for(int i = 0; i < alien->linhas; i++)
-        {
-            for(int j = 0; j < alien->colunas; j++)
-            {
-                printf("%d ", alien->desenho[i][j]);
-            }
-            printf("\n");
-        }
-    }
-    // Retorna 0 em caso de erro ao abrir o arquivo e imprime o erro no terminal
-    else
-    {
-        printf("Erro ao abrir arquivo\n");
-        return 0;
-    }
-
-    // Armazena as posições iniciais do alien baseado em no grupo ao qual o alien pertence e o seu id no grupo
-    alien->x = espacamento_x + (alien->largura + espacamento_x) * alien->id;
-    alien->y = espacamento_y + (alien->altura + espacamento_y) * alien->grupo; 
-
-    // Determina as velocidades de movitação do alien na vertical e na horizontal
-    alien->x_vel = 1;
-    alien->y_vel = alien->altura;
-    
-    // Armazena uma cor para o alien
-    alien->cor = al_map_rgb(rand()%255, rand()%255, rand()%255);
-
-    // Retorna o endereço de memória da struct
-    return alien;
-}
-
-GRUPO_ALIENS *init_grupo_aliens(int n, int id_grupo, char * tipo, float espacamento_x, float espacamento_y)
-{
-    GRUPO_ALIENS *grupo_aliens = (GRUPO_ALIENS*) malloc(sizeof(GRUPO_ALIENS));
-    
-    grupo_aliens->esquadrao = (ALIEN**) malloc(n * sizeof(ALIEN*));
-    grupo_aliens->id_grupo = id_grupo;
-    grupo_aliens->num_aliens = n;
-    grupo_aliens->espacamento_x = espacamento_x;
-    grupo_aliens->espacamento_y = espacamento_y;
-
-    grupo_aliens->tipo = (char*) malloc(strlen(tipo) * sizeof(char));
-    strcpy(grupo_aliens->tipo, tipo);
-
-    for(int i = 0; i < grupo_aliens->num_aliens; i++)
-    {
-        grupo_aliens->esquadrao[i] = initAlien(tipo, i, grupo_aliens->id_grupo, 
-                                                grupo_aliens->espacamento_x, 
-                                                grupo_aliens->espacamento_y);
-    }
-
-    grupo_aliens->x = grupo_aliens->esquadrao[0]->x;
-    grupo_aliens->y = grupo_aliens->esquadrao[0]->y;
-
-    int i = 0;
-    grupo_aliens->largura = 0;
-    while(1)
-    {
-        grupo_aliens->largura += grupo_aliens->esquadrao[i]->largura;
-        if(i == grupo_aliens->num_aliens - 1)break;
-        grupo_aliens->largura += espacamento_x;
-        i++;
-    }
-    grupo_aliens->altura = grupo_aliens->esquadrao[i]->altura;
-
-    printf("Largura esquadrao: %d\n", grupo_aliens->largura);
-    printf("Altura esquadrao: %d\n", grupo_aliens->altura);
-
-    grupo_aliens->altura = grupo_aliens->esquadrao[0]->altura;
-
-    return grupo_aliens;
-}
-
-GRUPO_ALIENS ** cria_esquadroes(int tamanho_esq, int n)
-{
-    GRUPO_ALIENS** aliens = (GRUPO_ALIENS **) malloc(n * sizeof(GRUPO_ALIENS*));
-    for(int i = 0; i < n; i++)
-    {
-        aliens[i] = init_grupo_aliens(tamanho_esq, i, "polvo", 30, 30);
-    }
-
-    return aliens;
-}
-
-void draw_alien(ALIEN *alien)
-{
-   
-    for(int i = 0; i < alien->linhas; i++)
-    {
-        for(int j = 0; j < alien->colunas; j++)
-        {
-            if(alien->desenho[i][j] == 1)
-            {
-                al_draw_filled_rectangle(alien->x + (j*5), alien->y + (i*5), 
-                            alien->x + (j+1) * 5, alien->y + (i+1) * 5, 
-                            alien->cor);
-            }
-        }
-    }
-}
-
-void imprime_grupo_aliens(ALIEN** grupo, int n)
-{
-    for(int i = 0; i < n; i++)
-    {
-        draw_alien(grupo[i]);
-    }
-}
-
-void update_alien(ALIEN *alien)
-{
-    if(alien->x + ALIEN_W + alien->x_vel > SCREEN_W || alien->x + alien->x_vel < 0)
-    {
-        alien->y += ALIEN_H;
-        alien->x_vel *= -1;
-    }
-    alien->x += alien->x_vel;
-}
-
-void update_grupo_aliens(GRUPO_ALIENS * grupo_aliens)
-{
-    if((grupo_aliens->x + grupo_aliens->largura + grupo_aliens->esquadrao[0]->x_vel) >= (SCREEN_W - 20) ||
-        (grupo_aliens->x + grupo_aliens->esquadrao[0]->x_vel) <= 20)
-    {
-        for(int i = 0; i < grupo_aliens->num_aliens; i++)
-        {
-            grupo_aliens->esquadrao[i]->y += grupo_aliens->altura;
-            grupo_aliens->esquadrao[i]->x_vel *= -1;
-        }
-        
-    }
-    
-    for(int i = 0; i < grupo_aliens->num_aliens; i++)
-    {
-        update_alien(grupo_aliens->esquadrao[i]);
-    }
-    grupo_aliens->x += grupo_aliens->esquadrao[0]->x_vel;
-    
-}
-
-int colisao_alien_solo(ALIEN *alien)
-{
-    if(alien->y + ALIEN_H > SCREEN_H - GRASS_H)return 1;
     return 0;
-}
-
-void destroi_alien(ALIEN * alien)
-{
-    // Liberando memória alocada para cada linha da matriz desenho (int*)
-    for(int i = 0; i < alien->linhas; i++)
-    {
-        free(alien->desenho[i]);
-    }
-    // Liberando memória alocada para toda a matriz (int**)
-    free(alien->desenho);
-    // Liberando memória alocada para o tipo do alien (char*)
-    free(alien->tipo);
-    // Liberando memória alocada para o alien (ALIEN*)
-    free(alien);
-}
-
-void destroi_grupo_aliens(GRUPO_ALIENS * grupo, int n)
-{
-
-    // Liberando a memória alocada por cada alien do esquadrão(ALIEN*)
-    for(int i = 0; i < n; i++)
-    {
-        destroi_alien(grupo->esquadrao[i]);
-    }
-    // Liberando memória alocada para todo esquadrão (ALIEN**)
-    free(grupo->esquadrao);
-    // Liberando memória alocada para o tipo do esquadrão (char*)
-    free(grupo->tipo);
-    // Liberando memória alocada para o grupo de aliens (GRUPO_ALIENS*)
-    free(grupo);
-}
-
-void destroi_esquadrao(GRUPO_ALIENS ** aliens, int tamanho_esq, int n)
-{
-    for(int i = 0; i < n; i++)
-    {
-        destroi_grupo_aliens(aliens[i], tamanho_esq);
-    }
-    free(aliens);
 }
 
 void draw_scenario()
 {
+
     al_clear_to_color(al_map_rgb(0, 0, 0));
     al_draw_filled_rectangle(0, SCREEN_H - GRASS_H, SCREEN_W, SCREEN_H, al_map_rgb(0, 240, 0));
+
+
+
+}
+
+void draw_score(ALLEGRO_FONT *fonte, int score)
+{
+    char str[] = "<SCORE>:";
+    char buffer[20];
+    char *nova_string;
+    sprintf(buffer, "%d", score);
+
+    int tamanho_nova_string = (int)strlen(str) + (int)strlen(buffer);
+
+    nova_string = (char*) malloc(tamanho_nova_string * sizeof(char));
+
+    for(int i = 0; i < strlen(str); i++)
+    {
+        nova_string[i] = str[i];
+    }
+
+    for(int i = 0; i < strlen(buffer); i++)
+    {
+        nova_string[i+strlen(str)] = buffer[i];
+    }
+
+    nova_string[tamanho_nova_string] = '\0';
+
+    printf("%s\n", nova_string);
+
+
+    al_draw_text(fonte, al_map_rgb(255, 255, 255), 10, 10, 0, nova_string);
+}
+
+int rodada_acabou(GRUPO_ALIENS **aliens, int n)
+{
+    int resultado = 0;
+    for(int i = 0; i < n; i++)
+    {
+        if(aliens[i]->estado)resultado++;
+    }
+
+    if(resultado == 0)return 1;
+    return 0;
 }
  
 int main(int argc, char **argv){
@@ -453,6 +209,18 @@ int main(int argc, char **argv){
     if(!al_init_primitives_addon())
     {
         fprintf(stderr, "Failed to initialize primitives!\n");
+        return -1;
+    }
+
+    if(!al_init_font_addon())
+    {
+        fprintf(stderr, "Failed to initialize fonts");
+        return -1;
+    }
+
+    if(!al_init_ttf_addon())
+    {
+        fprintf(stderr, "Failed to initialize trueTypeFonts");
         return -1;
     }
 
@@ -500,13 +268,28 @@ int main(int argc, char **argv){
     al_register_event_source(fila_de_eventos, al_get_timer_event_source(timer));
 
 
-    NAVE nave;
-    initNave(&nave);
+    NAVE * nave = initNave("nv2");
 
-    int tamanho_esq = 6;
-    int num_esq = 4;
-    GRUPO_ALIENS ** aliens = cria_esquadroes(tamanho_esq, num_esq);
+    printf("nave x: %f" , nave->x);
+    printf("nave dir: %d", nave->dir);
+    printf("nave esq: %d", nave->esq);
+    printf("nave vel: %f", nave->vel);
 
+    STAR * estrela1 = init_star(600, 300);
+
+    
+    int tamanho_esq = 6; // Quantidade aliens em um esquadrão
+    int num_esq = 4; // Número de esquadrões
+    GRUPO_ALIENS ** aliens = cria_esquadroes(tamanho_esq, num_esq, 30, 30);
+
+    ALLEGRO_FONT *fonte = al_load_ttf_font("fonts/retro-gaming.ttf", 20, 0);
+    if(!fonte)
+    {
+        fprintf(stderr, "Failed to load font");
+        return -1;
+    }
+
+    int score = 0;
     int playing = 1;
 
     // Inicia o temporizador
@@ -520,14 +303,21 @@ int main(int argc, char **argv){
         {
 
             draw_scenario();
-            update_nave(&nave);
+            draw_score(fonte, score);
+            draw_star(estrela1);
+
+            printf("enderco de nave: %p", &nave);
+
+            printf("nave esq: %d", nave->esq);
+            printf("nave dir: %d", nave->dir);
+            update_nave(nave);
 
             for(int i = 0; i < num_esq; i++)
             {
                 update_grupo_aliens(aliens[i]);
             }
 
-            update_tiro(&nave.municao, nave.x);
+            update_tiro(&nave->municao, nave->x);
             draw_nave(nave);
 
             for(int i = 0; i < num_esq; i++)
@@ -535,9 +325,21 @@ int main(int argc, char **argv){
                 imprime_grupo_aliens(aliens[i]->esquadrao, tamanho_esq);
             }
 
-            draw_tiro(nave.municao);
-            colisao_tiro(&nave.municao, nave.x,aliens, tamanho_esq, num_esq);
-            // playing = !colisao_alien_solo(&alien);
+            draw_tiro(nave->municao);
+
+            if(colisao_tiro(&nave->municao, nave->x,aliens, tamanho_esq, num_esq))score++;
+            printf("Score: %d", score);
+
+
+            if(verifica_colisao_esquadrao(aliens, num_esq))
+            {
+                playing = 0;
+            }
+            else if (rodada_acabou(aliens, num_esq))
+            {
+                playing = 0;
+            }
+            
 
             // Atualiza a tela (quando houver algo para mostrar)
             al_flip_display();
@@ -553,10 +355,6 @@ int main(int argc, char **argv){
         {
             playing = 0;
         }
-        else if(evento.type == ALLEGRO_EVENT_DISPLAY_RESIZE)
-        {
-
-        }
         // Se o tipo de evento for o pressionar de uma tecla
         else if(evento.type == ALLEGRO_EVENT_KEY_DOWN)
         {
@@ -566,14 +364,21 @@ int main(int argc, char **argv){
             switch (evento.keyboard.keycode)
             {
                 case ALLEGRO_KEY_A:
-                    nave.esq = 1;
+                    printf("Tecla A\n");
+                    nave->esq = 1;
+                    printf("nave esq: %d", nave->esq);
                     break;
                 
                 case ALLEGRO_KEY_D:
-                    nave.dir = 1;
+                    printf("Tecla D\n");
+                    nave->dir = 1;
+                    printf("nave dir: %d", nave->dir);
                     break;
+
                 case ALLEGRO_KEY_SPACE:
-                    nave.municao.estado = 1;
+                    printf("Tecla Espaço\n");
+                    nave->municao.estado = 1;
+                    break;
                 default:
                     break;
             }
@@ -586,23 +391,26 @@ int main(int argc, char **argv){
             switch (evento.keyboard.keycode)
             {
                 case ALLEGRO_KEY_A:
-                    nave.esq = 0;
+                    nave->esq = 0;
                     break;
                 
                 case ALLEGRO_KEY_D:
-                    nave.dir = 0;
+                    nave->dir = 0;
                     break;
                 
                 default:
                     break;
             }
-
         }
     }
 
+    destroi_star(estrela1);
+    destroi_nave(nave);
     destroi_esquadrao(aliens, tamanho_esq, num_esq);
+    al_destroy_font(fonte);
     al_destroy_display(display);
     al_destroy_event_queue(fila_de_eventos);
+    al_destroy_timer(timer);
  
     al_rest(1);
 	return 0;

@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "allegro.h": "c"
     },
 
     "C_Cpp.default.includePath": [
