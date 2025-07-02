@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <allegro5/allegro.h>
-#include <allegro5/allegro_font.h>
-#include <allegro5/allegro_ttf.h>
-#include <allegro5/allegro_primitives.h>
-#include <allegro5/allegro_image.h>
+#include "libs_e_tipos.h"
 #include "util.h"
 
 #define SCREEN_W 960 // Largura da tela
@@ -18,36 +11,6 @@
 #define PONTA_NAVE SCREEN_H - (GRASS_H/2) - NAVE_H
 
 
-/* 
-    Struct que compõe a munição do jogador, com propriedades para controlar 
-    sua posição e movimentação, bem como se a munição está sendo usada ou não
-*/
-typedef struct TIRO
-{
-    int estado;
-    float x, y;
-    float y_vel;
-    float raio;
-    ALLEGRO_COLOR cor;
-}TIRO;
-
-/* 
-    Struct que compõe a nave controlada pelo jogador 
-    e as propriedades da nave como posição e visual
-*/
-typedef struct NAVE
-{
-    int **desenho;
-    int linhas, colunas;
-    float altura, largura;
-    float x, y;
-    float vel;
-    int dir, esq;
-    ALLEGRO_COLOR cor;
-    TIRO municao;
-}NAVE;
-
-
 // Instancia uma struct nave
 NAVE * initNave(char * tipo)
 {
@@ -55,11 +18,11 @@ NAVE * initNave(char * tipo)
 
     if(!strcmp(tipo, "nv1"))
     {
-        nave->desenho = guarda_desenho(&nave->linhas, &nave->colunas, "designs/nv1.txt");
+        nave->desenho = guarda_matriz(&nave->linhas, &nave->colunas, "designs/nv1.txt");
     }
     else if(!strcmp(tipo, "nv2"))
     {
-        nave->desenho = guarda_desenho(&nave->linhas, &nave->colunas, "designs/nv2.txt");
+        nave->desenho = guarda_matriz(&nave->linhas, &nave->colunas, "designs/nv2.txt");
     }
 
     nave->altura = 3 * nave->linhas;
@@ -71,6 +34,11 @@ NAVE * initNave(char * tipo)
     nave->dir = 0;
     nave->esq = 0;
     nave->cor = al_map_rgb(0, 0, 255);
+
+    nave->municao.desenho = guarda_matriz(&nave->municao.linhas, &nave->municao.colunas, "designs/tiro.txt");
+
+    nave->municao.altura = 2 * nave->municao.linhas;
+    nave->municao.largura = 2 * nave->municao.colunas;
 
     nave->municao.estado = 0;
     nave->municao.raio = 5;
@@ -100,22 +68,11 @@ void draw_nave(NAVE *nave)
             
         }
     }
-    // al_draw_filled_triangle(nave->x, y_base - NAVE_H, 
-    //                         nave->x - (NAVE_W/2), y_base, 
-    //                         nave->x + (NAVE_W/2), y_base, 
-    //                         nave->cor);
 }
 
 // Atualiza a posição da nave de acordo com parâmetros de controle da nave
 void update_nave(NAVE *nave)
 {
-
-    printf("endereco de nave: %p", nave);
-
-    printf("tentando atualizar nave\n");
-    printf("nave esq: %d\n", nave->esq);
-    printf("nave dir: %d\n", nave->dir);
-    printf("nave x: %f", nave->x);
     if(nave->esq != nave->dir)
     {
         if(nave->esq == 1 && nave->x - nave->vel >= 0)
@@ -136,12 +93,61 @@ void update_nave(NAVE *nave)
     }
 }
 
+// Reseta as variáveis de nave para uma nova rodada
+void reset_nave(NAVE * nave)
+{
+    nave->x = (float)(SCREEN_W/2) - (nave->largura/2);
+    nave->y = SCREEN_H - (GRASS_H/2) - nave->altura;
+    nave->vel = 3;
+    nave->dir = 0;
+    nave->esq = 0;
+    nave->cor = al_map_rgb(0, 0, 255);
+
+    nave->municao.estado = 0;
+    nave->municao.raio = 5;
+    nave->municao.x = nave->x + (nave->largura/2);
+    nave->municao.y = nave->y;
+    nave->municao.y_vel = 4;
+    nave->municao.cor = al_map_rgb(255, 0, 0);
+}
+
 // Desenha o tiro do jogador no cenário
 void draw_tiro(TIRO municao)
 {
     if(municao.estado == 1)
     {
-        al_draw_filled_circle(municao.x, municao.y, municao.raio, municao.cor);
+        for(int i = 0; i < municao.linhas; i++)
+        {
+            for(int j = 0; j < municao.colunas; j++)
+            {
+                if(municao.desenho[i][j] == 1)
+                {
+                    al_draw_filled_rectangle(municao.x + (j*2), municao.y + (i*2), 
+                                municao.x + (j+1) * 2, municao.y + (i+1) * 2, 
+                                al_map_rgb(244, 154, 105));
+                }
+                else if(municao.desenho[i][j] == 2)
+                {
+                    al_draw_filled_rectangle(municao.x + (j*2), municao.y + (i*2), 
+                                municao.x + (j+1) * 2, municao.y + (i+1) * 2, 
+                                al_map_rgb(248, 244, 11));
+                }
+                else if (municao.desenho[i][j] == 3)
+                {
+                    al_draw_filled_rectangle(municao.x + (j*2), municao.y + (i*2), 
+                                municao.x + (j+1) * 2, municao.y + (i+1) * 2, 
+                                al_map_rgb(241, 51, 109));
+                }
+                else if (municao.desenho[i][j] == 4)
+                {
+                    al_draw_filled_rectangle(municao.x + (j*2), municao.y + (i*2), 
+                                municao.x + (j+1) * 2, municao.y + (i+1) * 2, 
+                                al_map_rgb(66, 4, 104));
+                }
+                
+            }
+        }
+        
     }
 }
 

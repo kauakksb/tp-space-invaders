@@ -1,41 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <allegro5/allegro.h>
-
-/*  
-    Struct que compõe um alien e suas propriedades, bem como 
-    outros elementos para controle de cada um no jogo 
-*/
-typedef struct ALIEN
-{
-    char *tipo;
-    int **desenho;
-    int estado;
-    int id, grupo;
-    int linhas, colunas;
-    float altura, largura;
-    float x, y;
-    float x_vel, y_vel;
-    ALLEGRO_COLOR cor;
-}ALIEN;
-
-/*  
-    Struct que contém um esquadrão/vetor de aliens e as propriedades desse 
-    grupo, que são usadas para controlar aspectos como a movimentação do 
-    grupo e os sistemas do jogo 
-*/
-typedef struct GRUPO_ALIENS
-{
-    ALIEN **esquadrao;
-    char *tipo;
-    int id_grupo;
-    int estado;
-    float x, y;
-    float espacamento_x;
-    float espacamento_y;
-    float altura, largura;
-    int num_aliens;
-}GRUPO_ALIENS;
+#include "libs_e_tipos.h"
 
 // Instancia uma struct de ALIEN e retorna seu endereço de memória (o seu ponteiro)
 ALIEN *initAlien(char *tipo, int id, int grupo, float espacamento_x, float espacamento_y);
@@ -45,6 +8,8 @@ GRUPO_ALIENS *init_grupo_aliens(int n, int id_grupo, char * tipo, float espacame
 
 // Realiza a criação de vários esquadrões e os organiza em um batalhão
 GRUPO_ALIENS ** cria_esquadroes(int tamanho_esq, int n, float espacamento_x, float espacamento_y);
+
+void define_aliens_used(GRUPO_ALIENS ** aliens, int tamanho_esq, int num_esq, int novo_tamanho, int novo_num);
 
 // Desenha a figura do alien no display
 void draw_alien(ALIEN *alien);
@@ -66,6 +31,9 @@ int colisao_alien_solo(ALIEN *alien);
     como o estado do esquadrão e os estado do alien, isto é, se estão vivos ou não
 */
 int verifica_colisao_esquadrao(GRUPO_ALIENS **aliens, int n);
+
+// Reseta grupo de aliens para nova rodada
+void reset_alien(GRUPO_ALIENS ** aliens, int num_esq, int tamanho_esq, float espacamento_x, float espacamento_y);
 
 // Libera a memória alocada para a struct ALIEN passada no parâmetro
 void destroi_alien(ALIEN * alien);

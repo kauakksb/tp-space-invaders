@@ -1,7 +1,13 @@
 {
     "files.associations": {
         "stdio.h": "c",
-        "allegro.h": "c"
+        "allegro.h": "c",
+        "allegro_font.h": "c",
+        "alien.h": "c",
+        "nave.h": "c",
+        "util.h": "c",
+        "jogador.h": "c",
+        "libs_e_tipos.h": "c"
     },
 
     "C_Cpp.default.includePath": [

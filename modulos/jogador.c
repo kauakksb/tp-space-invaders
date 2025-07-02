@@ -1,23 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <allegro5/allegro.h>
-#include <allegro5/allegro_font.h>
-#include <allegro5/allegro_ttf.h>
-#include <allegro5/allegro_primitives.h>
-#include <allegro5/allegro_image.h>
+#include "libs_e_tipos.h"
 #include "nave.h"
 
-typedef struct JOGADOR
-{
-    char *nome;
-    int id;
-    int vidas;
-    int score;
-    NAVE *nave;
-}JOGADOR;
 
-JOGADOR * initJogador(char * nome,int id, int vidas)
+// Cria uma instância de jogador
+JOGADOR * initJogador(char * nome,int id, int vidas, char * tipo_nave)
 {
     JOGADOR * jogador = (JOGADOR*) malloc(sizeof(JOGADOR));
 
@@ -26,11 +12,16 @@ JOGADOR * initJogador(char * nome,int id, int vidas)
 
     jogador->id = id;
     jogador->vidas = vidas;
+    jogador->contador_pw = 0;
+    jogador->num_tiros_pw = 10;
     jogador->score = 0;
 
-    jogador->nave = initNave();
+    jogador->nave = initNave(tipo_nave);
+
+    return jogador;
 }
 
+// Libera a memória alocada para uma struct de jogador 
 void destroi_jogador(JOGADOR * jogador)
 {
     destroi_nave(jogador->nave);

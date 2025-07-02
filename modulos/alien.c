@@ -1,51 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <allegro5/allegro.h>
-#include <allegro5/allegro_font.h>
-#include <allegro5/allegro_ttf.h>
-#include <allegro5/allegro_primitives.h>
-#include <allegro5/allegro_image.h>
+#include "libs_e_tipos.h"
 #include "util.h"
 
 #define SCREEN_W 960 // Largura da tela
 #define SCREEN_H 540 // Altura da tela=
 #define GRASS_H 60
-
-/*  
-    Struct que compõe um alien e suas propriedades, bem como 
-    outros elementos para controle de cada um no jogo 
-*/
-typedef struct ALIEN
-{
-    char *tipo;
-    int **desenho;
-    int estado;
-    int id, grupo;
-    int linhas, colunas;
-    float altura, largura;
-    float x, y;
-    float x_vel, y_vel;
-    ALLEGRO_COLOR cor;
-}ALIEN;
-
-/*  
-    Struct que contém um esquadrão/vetor de aliens e as propriedades desse 
-    grupo, que são usadas para controlar aspectos como a movimentação do 
-    grupo e os sistemas do jogo 
-*/
-typedef struct GRUPO_ALIENS
-{
-    ALIEN **esquadrao;
-    char *tipo;
-    int id_grupo;
-    int estado;
-    float x, y;
-    float espacamento_x;
-    float espacamento_y;
-    float altura, largura;
-    int num_aliens;
-}GRUPO_ALIENS;
 
 // Instancia uma struct de ALIEN e retorna seu endereço de memória (o seu ponteiro)
 ALIEN *initAlien(char *tipo, int id, int grupo, float espacamento_x, float espacamento_y)
@@ -66,23 +24,20 @@ ALIEN *initAlien(char *tipo, int id, int grupo, float espacamento_x, float espac
     alien->tipo = (char*) malloc(strlen(tipo) * sizeof(char));
     strcpy(alien->tipo, tipo);
 
-    // Declarando variável que será usada para abrir o arquivo do desenho do alien
-    // FILE * arq = NULL;
-
     // Verificando qual o tipo do alien
     if(!strcmp(alien->tipo, "carangueijo"))
     {
-        alien->desenho = guarda_desenho(&alien->linhas, &alien->colunas, "designs/crab.txt");
+        alien->desenho = guarda_matriz(&alien->linhas, &alien->colunas, "designs/crab.txt");
         // arq = fopen("designs/crab.txt", "r");
     }
     else if(!strcmp(alien->tipo, "polvo"))
     {
-        alien->desenho = guarda_desenho(&alien->linhas, &alien->colunas, "designs/octopus.txt");
+        alien->desenho = guarda_matriz(&alien->linhas, &alien->colunas, "designs/octopus.txt");
         // arq = fopen("designs/octopus.txt", "r");
     }
     else if(!strcmp(alien->tipo, "molusco"))
     {
-        alien->desenho = guarda_desenho(&alien->linhas, &alien->colunas, "designs/squid.txt");
+        alien->desenho = guarda_matriz(&alien->linhas, &alien->colunas, "designs/squid.txt");
         // arq = fopen("designs/squid.txt", "r");
     }
 
@@ -92,7 +47,7 @@ ALIEN *initAlien(char *tipo, int id, int grupo, float espacamento_x, float espac
 
     // Armazena as posições iniciais do alien baseado em no grupo ao qual o alien pertence e o seu id no grupo
     alien->x = espacamento_x + (alien->largura + espacamento_x) * alien->id;
-    alien->y = 40 + espacamento_y + (alien->altura + espacamento_y) * alien->grupo; 
+    alien->y = 20 + espacamento_y + (alien->altura + espacamento_y) * alien->grupo; 
 
     // Determina as velocidades de movitação do alien na vertical e na horizontal
     alien->x_vel = 1;
@@ -153,12 +108,46 @@ GRUPO_ALIENS *init_grupo_aliens(int n, int id_grupo, char * tipo, float espacame
 GRUPO_ALIENS ** cria_esquadroes(int tamanho_esq, int n, float espacamento_x, float espacamento_y)
 {
     GRUPO_ALIENS** aliens = (GRUPO_ALIENS **) malloc(n * sizeof(GRUPO_ALIENS*));
+
     for(int i = 0; i < n; i++)
     {
         aliens[i] = init_grupo_aliens(tamanho_esq, i, "polvo", espacamento_x, espacamento_y);
     }
 
     return aliens;
+}
+
+void define_aliens_used(GRUPO_ALIENS ** aliens, int tamanho_esq, int num_esq, int novo_tamanho, int novo_num)
+{
+    for(int i = 0; i < num_esq; i++)
+    {
+        for(int j = 0; j < tamanho_esq; j++)
+        {
+            if(j >= novo_tamanho)
+            {
+                aliens[i]->esquadrao[j]->estado = 0;
+            }
+            if(i >= novo_num)
+            {
+                aliens[i]->esquadrao[j]->estado = 0;
+                aliens[i]->estado = 0;
+            }
+        }
+    }
+
+    for(int i = 0; i < novo_num; i++)
+    {
+        aliens[i]->largura = 0;
+        int j = 0;
+        while(1)
+        {
+            aliens[i]->largura += aliens[i]->esquadrao[j]->largura;
+            if(j == novo_tamanho - 1)break;
+            aliens[i]->largura += aliens[i]->espacamento_x;
+            j++;
+        }
+    }
+    printf("reconfiguracao concluida!");
 }
 
 // Desenha a figura do alien no display
@@ -175,6 +164,12 @@ void draw_alien(ALIEN *alien)
                     al_draw_filled_rectangle(alien->x + (j*5), alien->y + (i*5), 
                                 alien->x + (j+1) * 5, alien->y + (i+1) * 5, 
                                 alien->cor);
+                }
+                else if(alien->desenho[i][j] == 2)
+                {
+                    al_draw_filled_rectangle(alien->x + (j*5), alien->y + (i*5), 
+                                alien->x + (j+1) * 5, alien->y + (i+1) * 5, 
+                                al_map_rgb(0, 0, 255));
                 }
             }
         }
@@ -259,6 +254,29 @@ int verifica_colisao_esquadrao(GRUPO_ALIENS **aliens, int n)
     }
     return 0;
 }
+
+// Reseta grupo de aliens para nova rodada
+void reset_alien(GRUPO_ALIENS ** aliens, int num_esq, int tamanho_esq, float espacamento_x, float espacamento_y)
+{
+
+    for(int i = 0; i < num_esq; i++)
+    {
+        for(int j = 0; j < tamanho_esq; j++)
+        {
+            aliens[i]->esquadrao[j]->x_vel = 1;
+            aliens[i]->esquadrao[j]->estado = 1;
+            aliens[i]->esquadrao[j]->x = espacamento_x + (aliens[i]->esquadrao[j]->largura + espacamento_x) * aliens[i]->esquadrao[j]->id;
+            aliens[i]->esquadrao[j]->y = 40 + espacamento_y + (aliens[i]->esquadrao[j]->altura + espacamento_y) * aliens[i]->esquadrao[j]->grupo; 
+        }
+        aliens[i]->estado = 1;
+        aliens[i]->x = aliens[i]->esquadrao[0]->x;
+        aliens[i]->y = aliens[i]->esquadrao[0]->y;
+    }
+
+
+
+}
+
 
 // Libera a memória alocada para a struct ALIEN passada no parâmetro
 void destroi_alien(ALIEN * alien)
